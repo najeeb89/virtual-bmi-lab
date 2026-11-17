@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtual Biomedical Instrumentation Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#03060d;--bg2:#070d1a;--panel:rgba(10,20,38,.62);--panel-solid:#0a1426;
+    --ink:#e8f4ff;--muted:#7f93b2;--line:rgba(0,229,255,.16);--line2:rgba(0,229,255,.32);
+    --cyan:#00e5ff;--accent:#00e5ff;--mag:#ff2bd6;--violet:#8b5cff;
+    --danger:#ff3b5c;--warn:#ffb020;--ok:#2bff9a;--blue:#3d8bff;
+    --display:'Orbitron','Space Grotesk',system-ui,sans-serif;
+    --sans:'Space Grotesk',system-ui,-apple-system,Segoe UI,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);min-height:100vh;background:var(--bg);overflow-x:clip}
+
+  /* ---------- ambient background ---------- */
+  .bgfx{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden;
+    background:
+      radial-gradient(900px 600px at 85% -10%,rgba(139,92,255,.22),transparent 60%),
+      radial-gradient(800px 600px at -10% 10%,rgba(0,229,255,.16),transparent 60%),
+      radial-gradient(700px 500px at 50% 120%,rgba(255,43,214,.12),transparent 60%),
+      linear-gradient(180deg,#03060d,#050a16 60%,#03060d)}
+  .bgfx .grid{position:absolute;left:-50%;right:-50%;bottom:-10%;height:70%;
+    background-image:linear-gradient(rgba(0,229,255,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.14) 1px,transparent 1px);
+    background-size:56px 56px;transform:perspective(520px) rotateX(64deg);transform-origin:center top;
+    mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent 85%);-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent 85%);
+    animation:gridmove 6s linear infinite}
+  @keyframes gridmove{to{background-position:0 56px}}
+  .bgfx .stars{position:absolute;inset:0;background-image:
+      radial-gradient(1px 1px at 12% 18%,#fff8,transparent),radial-gradient(1px 1px at 72% 12%,#fff6,transparent),
+      radial-gradient(1px 1px at 40% 40%,#fff5,transparent),radial-gradient(1.5px 1.5px at 88% 46%,#9ff6,transparent),
+      radial-gradient(1px 1px at 22% 66%,#fff4,transparent),radial-gradient(1px 1px at 60% 78%,#fff5,transparent),
+      radial-gradient(1.5px 1.5px at 6% 88%,#f9f5,transparent),radial-gradient(1px 1px at 95% 90%,#fff5,transparent)}
+  .scan{position:fixed;inset:0;z-index:100;pointer-events:none;
+    background:repeating-linear-gradient(180deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+
+  /* ---------- top bar ---------- */
+  .topbar{position:sticky;top:0;z-index:50;background:rgba(3,6,13,.72);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);
+    border-bottom:1px solid var(--line);padding:12px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+    background:linear-gradient(90deg,transparent,var(--cyan),var(--mag),transparent);opacity:.7}
+  .brand{display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+  .brand-icon{width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--line2);border-radius:9px;
+    background:linear-gradient(135deg,rgba(0,229,255,.18),rgba(255,43,214,.14));box-shadow:0 0 18px rgba(0,229,255,.35),inset 0 0 12px rgba(0,229,255,.2)}
+  .brand-icon svg{width:20px;height:20px}
+  .brand small{display:block;font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--muted);font-weight:400;margin-top:2px}
+  .nav-tabs{display:flex;gap:4px;margin-left:auto;overflow-x:auto;max-width:100%;padding:3px;border:1px solid var(--line);border-radius:12px;background:rgba(10,20,38,.5)}
+  .nav-tab{white-space:nowrap;padding:7px 12px;border-radius:9px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;letter-spacing:.3px;transition:all .2s}
+  .nav-tab:hover{color:var(--ink)}
+  .nav-tab.active{color:#001018;background:linear-gradient(135deg,var(--cyan),#7af3ff);box-shadow:0 0 16px rgba(0,229,255,.5)}
+
+  .wrap{padding:16px;max-width:960px;margin:0 auto;display:grid;gap:16px}
+  .wrap>*,.panel{min-width:0}
+  .view{display:none;counter-reset:sec}
+  .view.active{display:block;animation:viewin .45s cubic-bezier(.2,.8,.2,1)}
+  @keyframes viewin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;padding:44px 18px 10px;text-align:center;max-width:960px;margin:0 auto}
+  .hud-chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
+  .chip{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);
+    border:1px solid var(--line2);background:rgba(0,229,255,.06);padding:5px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:7px}
+  .chip i{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:blink 1.6s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .hero h1{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(26px,6.4vw,52px);line-height:1.08;letter-spacing:1px;text-transform:uppercase;
+    background:linear-gradient(100deg,#fff 0%,#9ff4ff 35%,var(--cyan) 55%,var(--mag) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 22px rgba(0,229,255,.28))}
+  .hero .kicker{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:10px}
+  @media(max-width:520px){.hero .kicker{letter-spacing:1.5px;font-size:10px}.stat span{letter-spacing:.6px;font-size:8.5px}}
+  .hero p{color:var(--muted);font-size:15px;max-width:560px;margin:14px auto 0;line-height:1.6}
+  .pulse-line{display:block;width:100%;max-width:820px;height:70px;margin:22px auto 0}
+  .pulse-line path{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .pulse-line .base{stroke:rgba(0,229,255,.15)}
+  .pulse-line .run{stroke:url(#pg);stroke-dasharray:240 1400;animation:ecgrun 3.2s linear infinite;filter:drop-shadow(0 0 6px var(--cyan))}
+  @keyframes ecgrun{from{stroke-dashoffset:1640}to{stroke-dashoffset:0}}
+
+  .byline{position:relative;display:inline-block;margin:20px auto 0;padding:16px 26px;text-align:center;
+    background:var(--panel);border:1px solid var(--line2);border-radius:14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    box-shadow:0 0 0 1px rgba(255,43,214,.08) inset,0 10px 40px rgba(0,0,0,.4)}
+  .byline .tag{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--mag);text-transform:uppercase}
+  .names{display:flex;gap:6px 22px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+  .names span{font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:1px;color:var(--ink);text-transform:uppercase;text-shadow:0 0 14px rgba(0,229,255,.45)}
+  .names span::before{content:"▸ ";color:var(--cyan)}
+  .names em{display:block;font-style:normal;font-family:var(--mono);font-size:11px;font-weight:400;letter-spacing:2px;color:var(--mag);text-shadow:0 0 10px rgba(255,43,214,.45);margin-top:3px}
+
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .stat b{display:block;font-family:var(--display);font-size:22px;color:var(--cyan);text-shadow:0 0 14px rgba(0,229,255,.5)}
+  .stat span{font-family:var(--mono);font-size:9.5px;letter-spacing:1.4px;color:var(--muted);text-transform:uppercase}
+
+  /* ---------- module cards ---------- */
+  .cards{display:grid;gap:16px}
+  @media(min-width:700px){.cards{grid-template-columns:repeat(3,1fr)}}
+  .card{--c:var(--cyan);position:relative;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:16px;
+    background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,0) 40%),var(--panel);border:1px solid var(--line);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:transform .25s,border-color .25s,box-shadow .25s}
+  .card::before{content:"";position:absolute;inset:-1px;border-radius:16px;padding:1px;pointer-events:none;
+    background:linear-gradient(140deg,var(--c),transparent 40%,transparent 60%,var(--c));opacity:.35;
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+  .card::after{content:"";position:absolute;top:-120%;left:-60%;width:60%;height:300%;transform:rotate(25deg);
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent);transition:left .7s}
+  .card:hover{transform:translateY(-4px);border-color:var(--c);box-shadow:0 0 0 1px var(--c),0 14px 40px rgba(0,0,0,.5),0 0 34px color-mix(in srgb,var(--c) 35%,transparent)}
+  .card:hover::after{left:130%}
+  .card.c1{--c:#ff3b5c}.card.c2{--c:#00e5ff}.card.c3{--c:#b46bff}
+  .card .ico{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--c) 50%,transparent);
+    background:color-mix(in srgb,var(--c) 10%,transparent);box-shadow:0 0 20px color-mix(in srgb,var(--c) 30%,transparent)}
+  .card .ico svg{width:30px;height:30px;stroke:var(--c);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px var(--c))}
+  .card .exno{font-family:var(--mono);font-size:10px;color:var(--c);letter-spacing:2px;text-transform:uppercase}
+  .card h3{margin:0;font-family:var(--display);font-size:15px;letter-spacing:.8px;text-transform:uppercase;line-height:1.3}
+  .card p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.55}
+  .card .open{margin-top:auto;padding-top:6px;font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--c);display:flex;align-items:center;gap:8px}
+  .card .open::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--c),transparent);opacity:.5}
+
+  /* ---------- panels (HUD frames) ---------- */
+  .panel{position:relative;padding:18px;border-radius:14px;background:var(--panel);border:1px solid var(--line);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .panel::before,.panel::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--cyan);pointer-events:none;opacity:.85;filter:drop-shadow(0 0 4px var(--cyan))}
+  .panel::before{top:-1px;left:-1px;border-right:0;border-bottom:0;border-top-left-radius:14px}
+  .panel::after{bottom:-1px;right:-1px;border-left:0;border-top:0;border-bottom-right-radius:14px}
+  .panel h2{margin:0 0 14px;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--cyan);text-transform:uppercase;letter-spacing:2.2px;
+    display:flex;align-items:center;gap:10px}
+  .panel h2::before{counter-increment:sec;content:counter(sec,decimal-leading-zero);color:#001018;background:var(--cyan);
+    padding:2px 6px;border-radius:4px;font-size:10px;letter-spacing:1px;box-shadow:0 0 10px rgba(0,229,255,.6)}
+  .panel h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+  .txt{font-size:14px;line-height:1.7;color:#c8d6ea}
+  .txt b{color:#fff}
+  .view-title{position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:18px 2px 6px}
+  .view-title h1{margin:0;font-family:var(--display);font-size:clamp(18px,4.6vw,28px);letter-spacing:1px;text-transform:uppercase;line-height:1.15;
+    background:linear-gradient(100deg,#fff,#9ff4ff 50%,var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .view-title .sub{font-family:var(--mono);color:var(--mag);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px}
+  .view-title>div{display:flex;flex-direction:column-reverse}
+  .back-btn{background:rgba(0,229,255,.06);color:var(--cyan);border:1px solid var(--line2);padding:9px 14px;border-radius:9px;font-size:12px;cursor:pointer;
+    font-family:var(--mono);letter-spacing:1px;white-space:nowrap;transition:all .2s}
+  .back-btn:hover{background:rgba(0,229,255,.16);box-shadow:0 0 14px rgba(0,229,255,.35)}
+
+  /* ---------- controls ---------- */
+  button{font-family:inherit;cursor:pointer}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:520px){.controls{grid-template-columns:1fr}}
+  .control{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:10px;background:rgba(0,0,0,.25);border:1px solid rgba(0,229,255,.08)}
+  label,.lbl-s{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1.4px}
+  .readout{font-family:var(--mono);font-size:26px;font-weight:600;color:var(--cyan);font-variant-numeric:tabular-nums;text-shadow:0 0 14px rgba(0,229,255,.55)}
+  .readout .unit{font-size:12px;color:var(--muted);margin-left:4px;font-weight:400;text-shadow:none}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;margin:2px 0}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:linear-gradient(90deg,var(--cyan),var(--violet),var(--mag));box-shadow:0 0 10px rgba(0,229,255,.35)}
+  input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:linear-gradient(90deg,var(--cyan),var(--violet),var(--mag))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;margin-top:-7px;border-radius:50%;background:#001018;border:2px solid var(--cyan);box-shadow:0 0 12px var(--cyan),inset 0 0 6px var(--cyan)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#001018;border:2px solid var(--cyan);box-shadow:0 0 12px var(--cyan)}
+  input[type=range]:disabled{opacity:.3;filter:grayscale(1)}
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .act{position:relative;padding:14px 14px;border:1px solid transparent;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;font-family:var(--display);
+    clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);transition:filter .2s,transform .1s}
+  .act:hover:not(:disabled){filter:brightness(1.15) drop-shadow(0 0 10px currentColor)}
+  .act:active:not(:disabled){transform:scale(.98)}
+  .act:disabled{opacity:.3;cursor:not-allowed;filter:grayscale(.6)}
+  .yellow{background:linear-gradient(135deg,#ffcf4a,#ff9a1f);color:#140a00}
+  .red{background:linear-gradient(135deg,#ff5577,#e0123d);color:#fff}
+  .green{background:linear-gradient(135deg,#5dffb8,#14d982);color:#00170c}
+  .seg{display:flex;gap:6px;flex-wrap:wrap;padding:4px;border-radius:11px;background:rgba(0,0,0,.3);border:1px solid var(--line)}
+  .seg button{flex:1;min-width:64px;padding:10px 6px;border:1px solid transparent;background:transparent;color:var(--muted);border-radius:8px;font-size:12px;font-weight:600;transition:all .2s}
+  .seg button:hover:not(:disabled){color:var(--ink);background:rgba(0,229,255,.06)}
+  .seg button.active{background:linear-gradient(135deg,rgba(0,229,255,.25),rgba(0,229,255,.1));color:#fff;border-color:var(--cyan);box-shadow:0 0 14px rgba(0,229,255,.35),inset 0 0 10px rgba(0,229,255,.2)}
+  .seg button:disabled{opacity:.25;cursor:not-allowed}
+  .seg.r button.active{background:linear-gradient(135deg,rgba(255,59,92,.3),rgba(255,59,92,.1));border-color:var(--danger);box-shadow:0 0 14px rgba(255,59,92,.4)}
+  .seg.l button.active{background:linear-gradient(135deg,rgba(61,139,255,.3),rgba(61,139,255,.1));border-color:var(--blue);box-shadow:0 0 14px rgba(61,139,255,.45)}
+  .field{display:grid;gap:7px;margin-bottom:14px}
+
+  /* ---------- displays ---------- */
+  .scope{position:relative;background:radial-gradient(ellipse at center,#04110f,#000 75%);border-radius:10px;padding:8px;border:1px solid rgba(43,255,154,.2);
+    box-shadow:inset 0 0 30px rgba(0,0,0,.9),0 0 20px rgba(43,255,154,.06)}
+  .scope::after{content:"";position:absolute;inset:0;border-radius:10px;pointer-events:none;background:repeating-linear-gradient(180deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px)}
+  canvas{display:block;width:100%}
+  .row-between{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;border:1px solid}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;animation:blink 1.2s infinite}
+  .p-red{background:rgba(255,59,92,.1);color:var(--danger);border-color:rgba(255,59,92,.4)}
+  .p-green{background:rgba(43,255,154,.08);color:var(--ok);border-color:rgba(43,255,154,.4)}
+  .p-yel{background:rgba(255,176,32,.1);color:var(--warn);border-color:rgba(255,176,32,.4)}
+  .p-grey{background:rgba(127,147,178,.08);color:var(--muted);border-color:rgba(127,147,178,.3)}
+  .obs{position:relative;background:linear-gradient(90deg,rgba(0,229,255,.08),rgba(0,0,0,.25));border:1px solid var(--line);border-left:3px solid var(--cyan);
+    padding:11px 13px;border-radius:8px;font-size:13.5px;color:#b8c8de;margin-top:12px;line-height:1.55}
+  .obs b{color:#fff}
+  .obs.warn{border-left-color:var(--warn);background:linear-gradient(90deg,rgba(255,176,32,.09),rgba(0,0,0,.25))}
+  .obs.bad{border-left-color:var(--danger);background:linear-gradient(90deg,rgba(255,59,92,.1),rgba(0,0,0,.25))}
+  .bar{height:10px;background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:6px}
+  .bar>div{height:100%;width:0;background:repeating-linear-gradient(90deg,var(--warn) 0 8px,#ff6a00 8px 10px);box-shadow:0 0 14px var(--warn)}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .metric{position:relative;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;padding:10px 8px;text-align:center;overflow:hidden}
+  .metric::before{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.6}
+  .metric .l{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px}
+  .metric .v{font-family:var(--mono);font-size:15px;font-weight:600;margin-top:4px;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 0 10px rgba(0,229,255,.4)}
+  svg.dg{display:block;width:100%;height:auto;background:radial-gradient(ellipse at center,#071428,#02060d);border-radius:10px;border:1px solid var(--line)}
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{border-bottom:1px solid var(--line);border-right:1px solid rgba(0,229,255,.07);padding:8px 6px;text-align:center}
+  th{background:rgba(0,229,255,.08);color:var(--cyan);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+  tr:last-child td{border-bottom:0}
+  td{color:#d4e2f4;font-variant-numeric:tabular-nums}
+  tr:hover td{background:rgba(0,229,255,.04)}
+  .tbl-wrap{overflow-x:auto;border-radius:10px}
+  .steps{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .steps li{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;transition:all .25s}
+  .steps li .n{width:26px;height:26px;border-radius:7px;border:1px solid var(--line2);display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--cyan);flex:none}
+  .steps li.done{border-color:rgba(43,255,154,.35);background:rgba(43,255,154,.05)}
+  .steps li.done .n{background:var(--ok);color:#00170c;border-color:var(--ok);box-shadow:0 0 12px rgba(43,255,154,.6)}
+  .steps li span.t{flex:1}
+  .steps li button{padding:7px 12px;border:1px solid var(--cyan);border-radius:7px;background:rgba(0,229,255,.12);color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+  .steps li button:not(:disabled):hover{background:var(--cyan);color:#001018;box-shadow:0 0 14px var(--cyan)}
+  .steps li button:disabled{border-color:transparent;background:transparent;color:var(--muted);cursor:not-allowed}
+  .steps li.done button{color:var(--ok)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px;font-family:var(--mono)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .resp{width:16px;height:16px;border-radius:50%;background:#1b2436;border:1px solid #33405a;display:inline-block;vertical-align:middle;transition:all .1s}
+  .resp.on{background:#ffe34a;border-color:#fff3a0;box-shadow:0 0 18px #ffe34a,0 0 40px #ffb020}
+  .small{font-size:11.5px;color:var(--muted);line-height:1.5}
+
+  footer{position:relative;text-align:center;padding:30px 20px 36px;margin-top:20px;color:var(--muted);font-family:var(--mono);font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;line-height:2}
+  footer::before{content:"";position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--line2),transparent)}
+  footer b{color:var(--cyan);font-weight:600}
+
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+
+</head>
+<body>
+
+<div class="bgfx" aria-hidden="true"><div class="stars"></div><div class="grid"></div></div>
+<div class="scan" aria-hidden="true"></div>
+
+<div class="topbar">
+  <div class="brand" data-view="home">
+    <div class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2-5 3 10 3-8 2 3h6"/></svg></div>
+    <div>Virtual BMI Lab<small>SRMIST · BIOMED</small></div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" data-view="home">Home</div>
+    <div class="nav-tab" data-view="defib">Defibrillator</div>
+    <div class="nav-tab" data-view="hlm">Heart–Lung</div>
+    <div class="nav-tab" data-view="audio">Audiometer</div>
+  </div>
+</div>
+
+<!-- ================= HOME ================= -->
+<div class="view active" id="view-home">
+  <div class="hero">
+    <div class="hud-chips">
+      <span class="chip"><i></i>Systems online</span>
+      <span class="chip">3 modules</span>
+      <span class="chip">Interactive simulation</span>
+    </div>
+    <div class="kicker">Biomedical Instrumentation · Virtual Lab</div>
+    <h1>Virtual Biomedical<br>Instrumentation Lab</h1>
+    <p>Three experiments, simulated with the same controls and procedure as the lab manual. Pick a module to start.</p>
+    <svg class="pulse-line" viewBox="0 0 820 70" preserveAspectRatio="none" aria-hidden="true">
+      <defs><linearGradient id="pg" x1="0" x2="1"><stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#ff2bd6"/></linearGradient></defs>
+      <path class="base" d="M0 40H150l12-6 10 6h28l8 4 12-38 14 58 10-24h34l10-8 14 8H420l12-6 10 6h28l8 4 12-38 14 58 10-24h34l10-8 14 8H820"/>
+      <path class="run" d="M0 40H150l12-6 10 6h28l8 4 12-38 14 58 10-24h34l10-8 14 8H420l12-6 10 6h28l8 4 12-38 14 58 10-24h34l10-8 14 8H820"/>
+    </svg>
+    <div class="byline">
+      <div class="tag">// Submitted by</div>
+      <div class="names"><span>Syed Najeeb Ahmad Andrabi<em>RA2311013010059</em></span><span>Faraz Bin Qayoom<em>RA2311013010058</em></span></div>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><b>03</b><span>Experiments</span></div>
+      <div class="stat"><b>360<small style="font-size:12px"> J</small></b><span>Max defib energy</span></div>
+      <div class="stat"><b>8<small style="font-size:12px"> kHz</small></b><span>Audiometer range</span></div>
+    </div>
+    <div class="cards">
+      <div class="card c1" data-view="defib">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/><path d="M3 12h4l1.5-2.5 2 5 1.5-2.5H21"/></svg></div>
+        <div class="exno">Module 01</div><h3>Study of Defibrillator</h3>
+        <p>ECG simulator (Normal / A-fib / V-fib), synchronised & manual modes, DSO view and energy discharge.</p>
+        <div class="open">Launch</div>
+      </div>
+      <div class="card c2" data-view="hlm">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3"/><path d="M18 3v4h-4"/><path d="M20 12a8 8 0 0 1-14 5.3"/><path d="M6 21v-4h4"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+        <div class="exno">Module 02</div><h3>Heart Lung Machine Model</h3>
+        <p>Set up, prime and run the bypass circuit — blood pump, effluent pump, oxygenator and heat exchanger.</p>
+        <div class="open">Launch</div>
+      </div>
+      <div class="card c3" data-view="audio">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/><path d="M9 12v3M12 10v7M15 12v3"/></svg></div>
+        <div class="exno">Module 03</div><h3>Recording of Audiogram</h3>
+        <p>Pure-tone air & bone conduction thresholds with masking, plotted on a standard audiogram.</p>
+        <div class="open">Launch</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DEFIBRILLATOR ================= -->
+<div class="view" id="view-defib"><div class="wrap">
+  <div class="view-title">
+    <div><h1>Study the Working of Defibrillator</h1><div class="sub">Module 01 · Defibrillator</div></div>
+    <button class="back-btn" data-view="home">← Home</button>
+  </div>
+
+  <div class="panel"><h2>Aim</h2><div class="txt">To study the working of defibrillator.</div></div>
+
+  <div class="panel"><h2>Equipment Required</h2>
+    <div class="tbl-wrap"><table>
+      <tr><th>S.No</th><th>Name of the Equipment</th><th>Qty</th></tr>
+      <tr><td>1</td><td>Defibrillator</td><td>1</td></tr>
+      <tr><td>2</td><td>ECG Simulator (DC defibrillator simulator)</td><td>1</td></tr>
+      <tr><td>3</td><td>DSO</td><td>1</td></tr>
+      <tr><td>4</td><td>Discharge pads</td><td>2</td></tr>
+    </table></div>
+  </div>
+
+  <div class="panel"><h2>Circuit (DC Defibrillator)</h2>
+    <svg class="dg" viewBox="0 0 600 190">
+      <defs><marker id="ar1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" fill="#5eead4"/></marker></defs>
+      <g font-size="10" fill="#e6edf3" text-anchor="middle">
+        <rect x="10" y="20" width="80" height="44" rx="5" fill="#0a1020" stroke="#8b98b0"/><text x="50" y="40">AC mains</text><text x="50" y="54" fill="#8b98b0">230 V</text>
+        <rect x="110" y="20" width="100" height="44" rx="5" fill="#0a1020" stroke="#5eead4"/><text x="160" y="38">Variable auto-</text><text x="160" y="52">transformer</text>
+        <rect x="230" y="20" width="100" height="44" rx="5" fill="#0a1020" stroke="#5eead4"/><text x="280" y="38">HV step-up</text><text x="280" y="52">transformer</text>
+        <rect x="350" y="20" width="100" height="44" rx="5" fill="#0a1020" stroke="#5eead4"/><text x="400" y="38">Diode</text><text x="400" y="52">rectifier</text>
+        <rect x="470" y="20" width="120" height="44" rx="5" fill="#0a1020" stroke="#f59e0b"/><text x="530" y="38">HV change-over</text><text x="530" y="52">switch (1 / 2)</text>
+        <rect x="470" y="120" width="120" height="50" rx="5" fill="#0a1020" stroke="#f59e0b"/><text x="530" y="140">Oil-filled µF</text><text x="530" y="155">capacitor</text>
+        <rect x="320" y="120" width="110" height="50" rx="5" fill="#0a1020" stroke="#5eead4"/><text x="375" y="140">Inductor L</text><text x="375" y="155" fill="#8b98b0">shapes pulse</text>
+        <rect x="150" y="120" width="130" height="50" rx="5" fill="#0a1020" stroke="#ef4444"/><text x="215" y="140">Paddles → Patient</text><text x="215" y="155" fill="#8b98b0">R ≈ 50–100 Ω</text>
+        <rect x="10" y="120" width="110" height="50" rx="5" fill="#0a1020" stroke="#8b98b0"/><text x="65" y="140">Foot switch /</text><text x="65" y="155">paddle button</text>
+      </g>
+      <g stroke="#5eead4" stroke-width="2" fill="none" marker-end="url(#ar1)">
+        <path d="M90,42H108"/><path d="M210,42H228"/><path d="M330,42H348"/><path d="M450,42H468"/>
+        <path d="M530,64V118"/><path d="M470,145H432"/><path d="M320,145H282"/>
+        <path d="M120,145H148" stroke-dasharray="4 3"/>
+      </g>
+      <text x="522" y="95" font-size="9" fill="#8b98b0" text-anchor="end">pos 1: charge</text>
+      <text x="300" y="105" font-size="9" fill="#8b98b0" text-anchor="middle">pos 2: discharge through patient</text>
+    </svg>
+  </div>
+
+  <div class="panel"><h2>DSO · CH1 ECG &nbsp;|&nbsp; CH2 Sync pulse</h2>
+    <div class="row-between">
+      <span id="dRhythmPill" class="pill p-red">V-fib</span>
+      <span class="small">HR: <b id="dHR" style="color:var(--ink)">—</b> bpm · 25 mm/s</span>
+    </div>
+    <div class="scope"><canvas id="dEcg" style="height:200px"></canvas></div>
+  </div>
+
+  <div class="panel"><h2>ECG Simulator (front panel)</h2>
+    <div class="seg" id="dSim">
+      <button data-r="NORMAL">Normal</button>
+      <button data-r="AFIB">A-fib</button>
+      <button data-r="VFIB" class="active">V-fib</button>
+    </div>
+    <div class="small" style="margin-top:8px">Normal / A-fib → use SYNC mode. V-fib → use MANUAL mode (manual step 4).</div>
+  </div>
+
+  <div class="panel"><h2>Defibrillator Controls</h2>
+    <div class="field"><label>Mode switch</label>
+      <div class="seg" id="dMode"><button data-m="SYNC">Synch</button><button data-m="MANUAL" class="active">Manual</button></div>
+    </div>
+    <div class="field"><label>Output waveform</label>
+      <div class="seg" id="dWave">
+        <button data-w="MDS" class="active">Monophasic (damped, L–C)</button>
+        <button data-w="MTE">Monophasic (truncated)</button>
+        <button data-w="BTE">Biphasic</button>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label>Energy select</label>
+        <div class="readout"><span id="dE">300</span><span class="unit">J</span></div>
+        <input type="range" id="dEsl" min="10" max="360" step="10" value="300">
+      </div>
+      <div class="control">
+        <label>Patient (load) resistance</label>
+        <div class="readout"><span id="dR">50</span><span class="unit">Ω</span></div>
+        <input type="range" id="dRsl" min="50" max="100" step="5" value="50">
+      </div>
+      <div class="control" id="dPW1box" style="display:none">
+        <label id="dPW1lbl">Positive pulse width</label>
+        <div class="readout"><span id="dPW1">6</span><span class="unit">ms</span></div>
+        <input type="range" id="dPW1sl" min="3" max="10" step="0.5" value="6">
+      </div>
+      <div class="control" id="dPW2box" style="display:none">
+        <label>Negative pulse width</label>
+        <div class="readout"><span id="dPW2">4</span><span class="unit">ms</span></div>
+        <input type="range" id="dPW2sl" min="1" max="10" step="0.5" value="4">
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="row-between" style="margin:0"><span class="lbl-s">Capacitor charge</span><span class="small"><span id="dVcap">0</span> V</span></div>
+      <div class="bar"><div id="dBar"></div></div>
+    </div>
+    <div class="btn-row">
+      <button class="act yellow" id="dCharge">⚡ Charge</button>
+      <button class="act red" id="dShock" disabled>Discharge</button>
+    </div>
+    <div class="obs" id="dObs"><b>Start:</b> select rhythm on the simulator, set the mode switch, charge to the required energy (e.g. 300 J) and discharge.</div>
+  </div>
+
+  <div class="panel"><h2>Discharge Pulse across Patient Load</h2>
+    <div class="scope" style="background:#050b16"><canvas id="dWaveC" style="height:170px"></canvas></div>
+    <div class="metrics" style="margin-top:10px">
+      <div class="metric"><div class="l">Peak voltage</div><div class="v" id="dMv">—</div></div>
+      <div class="metric"><div class="l">Peak current</div><div class="v" id="dMi">—</div></div>
+      <div class="metric"><div class="l">Delivered energy</div><div class="v" id="dMe">—</div></div>
+    </div>
+    <div class="small" style="margin-top:8px">Stored energy E = ½CV². Damped pulse: C = 16 µF, L = 50 mH, inductor resistance 11 Ω. Truncated pulses: C = 150 µF. Monophasic width 3–12 ms; biphasic +3–10 ms / −1–10 ms.</div>
+  </div>
+
+  <div class="panel"><h2>Tabulation</h2>
+    <div class="tbl-wrap"><table id="dTable">
+      <tr><th>S.No</th><th>Nature of rhythm</th><th>Mode of defibrillation</th><th>Energy (J)</th><th>HR before (bpm)</th><th>HR after (bpm)</th><th>Rhythm after</th></tr>
+    </table></div>
+    <button class="back-btn" id="dClear" style="margin-top:10px">Clear table</button>
+  </div>
+
+  <div class="panel"><h2>Procedure</h2><div class="txt">
+    1. Switch ON the DC defibrillator and the defibrillator simulator.<br>
+    2. Connect simulator output to the ECG input of the defibrillator; ECG output to CH1 of the DSO.<br>
+    3. Select ‘Normal’ on the simulator with mode switch in SYNCH. Connect sync output to CH2 and observe the rising edge of the sync pulse coinciding with the QRS complex.<br>
+    4. Select ‘A-fib’. Press CHARGE to an energy level (e.g. 300 J); the value appears on the front panel.<br>
+    5. Connect the ‘Patient’ output to the simulator. In SYNCH mode, discharge and observe the corrected ECG. If not corrected, charge to a higher energy and repeat.<br>
+    6. Select ‘V-fib’ and repeat with the mode switch in MANUAL.
+  </div></div>
+
+  <div class="panel"><h2>Result</h2><div class="txt">Thus the working of defibrillator was studied.</div></div>
+</div></div>
+
+<!-- ================= HEART LUNG MACHINE ================= -->
+<div class="view" id="view-hlm"><div class="wrap">
+  <div class="view-title">
+    <div><h1>Study of Heart Lung Machine Model</h1><div class="sub">Module 02 · Heart–Lung Machine</div></div>
+    <button class="back-btn" data-view="home">← Home</button>
+  </div>
+
+  <div class="panel"><h2>Aim</h2><div class="txt">To study the working of heart lung machine.</div></div>
+
+  <div class="panel"><h2>Equipment Required</h2>
+    <div class="tbl-wrap"><table>
+      <tr><th>S.No</th><th>Name of the Equipment</th><th>Qty</th></tr>
+      <tr><td>1</td><td>Heart lung machine model</td><td>1</td></tr>
+      <tr><td>2</td><td>Connecting cables and power cords</td><td>As required</td></tr>
+      <tr><td>3</td><td>Effluent pump</td><td>1</td></tr>
+      <tr><td>4</td><td>Blood pump</td><td>1</td></tr>
+    </table></div>
+  </div>
+
+  <div class="panel"><h2>Bypass Circuit</h2>
+    <div class="row-between"><span class="pill p-grey" id="hStatus">NOT SET UP</span><span class="small" id="hPhase"></span></div>
+    <svg class="dg" viewBox="0 0 600 320" id="hSvg">
+      <g font-size="10" fill="#e6edf3" text-anchor="middle">
+        <rect x="20" y="115" width="100" height="100" rx="45" fill="#1e2a44" stroke="#5eead4"/>
+        <text x="70" y="155" font-weight="600">Patient</text><text x="70" y="170" fill="#8b98b0" font-size="9">RA / vena cavae →</text><text x="70" y="183" fill="#8b98b0" font-size="9">← ascending aorta</text>
+        <rect x="160" y="30" width="100" height="60" rx="6" fill="#0a1020" stroke="#3b82f6"/>
+        <text x="210" y="55" font-weight="600">Venous</text><text x="210" y="70" font-weight="600">reservoir</text>
+        <rect id="hLevel" x="161" y="74" width="98" height="15" fill="rgba(59,130,246,.25)"/>
+        <circle cx="320" cy="60" r="34" fill="#0a1020" stroke="#f59e0b"/>
+        <g id="hRotor"><line x1="300" y1="60" x2="340" y2="60" stroke="#f59e0b" stroke-width="3"/><circle cx="300" cy="60" r="5" fill="#f59e0b"/><circle cx="340" cy="60" r="5" fill="#f59e0b"/></g>
+        <text x="320" y="108" fill="#f59e0b">Roller (blood) pump</text>
+        <rect x="380" y="30" width="120" height="60" rx="6" fill="#0a1020" stroke="#5eead4"/>
+        <text x="440" y="55" font-weight="600">Oxygenator</text><text x="440" y="70" fill="#8b98b0" font-size="9" id="hOxyType">membrane</text>
+        <rect x="380" y="140" width="120" height="60" rx="6" fill="#0a1020" stroke="#f59e0b"/>
+        <text x="440" y="165" font-weight="600">Heat exchanger</text><text x="440" y="180" fill="#8b98b0" font-size="9" id="hHxTxt">—</text>
+        <rect x="160" y="140" width="100" height="60" rx="6" fill="#0a1020" stroke="#ef4444"/>
+        <text x="210" y="165" font-weight="600">Arterial filter</text><text x="210" y="180" fill="#8b98b0" font-size="9">& bubble trap</text>
+        <rect x="515" y="20" width="78" height="44" rx="6" fill="#0a1020" stroke="#22c55e"/>
+        <text x="554" y="38" font-size="9">Gas blender</text><text x="554" y="52" font-size="9" id="hGasTxt">O₂ / air</text>
+        <rect x="515" y="145" width="78" height="50" rx="6" fill="#0a1020" stroke="#f59e0b"/>
+        <text x="554" y="164" font-size="9">Heater–cooler</text><text x="554" y="178" font-size="9" id="hWaterTxt">water — °C</text>
+        <rect x="380" y="240" width="120" height="44" rx="6" fill="#0a1020" stroke="#8b98b0" id="hEffBox"/>
+        <text x="440" y="258" font-size="10">Effluent pump</text><text x="440" y="272" font-size="9" fill="#8b98b0" id="hEffTxt">off</text>
+      </g>
+      <g fill="none" stroke-width="5" stroke-linecap="round" id="hTubes" opacity=".35">
+        <path d="M120,150H140V60H160" stroke="#3b82f6"/>
+        <path d="M260,60H286" stroke="#3b82f6"/>
+        <path d="M354,60H380" stroke="#3b82f6"/>
+        <path d="M440,90V140" stroke="#ef4444"/>
+        <path d="M380,170H260" stroke="#ef4444"/>
+        <path d="M160,170H120" stroke="#ef4444"/>
+      </g>
+      <g fill="none" stroke-width="2" stroke-dasharray="4 3">
+        <path d="M515,42H500" stroke="#22c55e"/>
+        <path d="M515,165H500" stroke="#f59e0b"/><path d="M515,180H500" stroke="#f59e0b"/>
+        <path d="M440,240V200" stroke="#8b98b0"/>
+      </g>
+      <g id="hParticles"></g>
+    </svg>
+    <div class="legend">
+      <span><span style="width:12px;height:12px;border-radius:3px;background:#3b82f6"></span>Venous (deoxygenated)</span>
+      <span><span style="width:12px;height:12px;border-radius:3px;background:#ef4444"></span>Arterial (oxygenated)</span>
+      <span><span style="width:12px;height:12px;border-radius:3px;border:2px dashed #f59e0b"></span>Water / gas lines</span>
+    </div>
+  </div>
+
+  <div class="panel"><h2>Procedure (complete in order)</h2>
+    <ul class="steps" id="hSteps"></ul>
+    <div class="obs" id="hObs"><b>Start with step 1.</b> The pump cannot be run until the circuit is primed.</div>
+  </div>
+
+  <div class="panel"><h2>Controls</h2>
+    <div class="field"><label>Oxygenator type</label>
+      <div class="seg" id="hOxy"><button data-o="MEM" class="active">Membrane</button><button data-o="BUB">Bubble</button></div>
+    </div>
+    <div class="controls">
+      <div class="control"><label>Blood pump speed</label>
+        <div class="readout"><span id="hRpm">0</span><span class="unit">rpm</span> <span class="small">→ <span id="hFlowR">0.0</span> L/min</span></div>
+        <input type="range" id="hRpmSl" min="0" max="200" step="5" value="0" disabled></div>
+      <div class="control"><label>Patient body surface area</label>
+        <div class="readout"><span id="hBsa">1.8</span><span class="unit">m²</span> <span class="small">target <span id="hTarget">4.3</span> L/min</span></div>
+        <input type="range" id="hBsaSl" min="1.2" max="2.4" step="0.1" value="1.8"></div>
+      <div class="control"><label>Heater–cooler water temperature</label>
+        <div class="readout"><span id="hWater">32</span><span class="unit">°C</span></div>
+        <input type="range" id="hWaterSl" min="20" max="38" step="0.5" value="32" disabled></div>
+      <div class="control"><label>Sweep gas flow</label>
+        <div class="readout"><span id="hGas">4.0</span><span class="unit">L/min</span></div>
+        <input type="range" id="hGasSl" min="0.5" max="8" step="0.5" value="4" disabled></div>
+      <div class="control" id="hFio2Box"><label>FiO₂ (blender)</label>
+        <div class="readout"><span id="hFio2">60</span><span class="unit">%</span></div>
+        <input type="range" id="hFio2Sl" min="21" max="100" step="1" value="60" disabled></div>
+    </div>
+    <div class="btn-row"><button class="act red" id="hStop" disabled>■ Stop pump</button><button class="act yellow" id="hRewarm" disabled>Rewarm to 37 °C</button></div>
+  </div>
+
+  <div class="panel"><h2>Monitored Parameters</h2>
+    <div class="metrics">
+      <div class="metric"><div class="l">Pump flow</div><div class="v" id="mFlow">0.0 L/min</div></div>
+      <div class="metric"><div class="l">Cardiac index</div><div class="v" id="mCI">0.0</div></div>
+      <div class="metric"><div class="l">Arterial line P</div><div class="v" id="mLine">0 mmHg</div></div>
+      <div class="metric"><div class="l">Mean art. P</div><div class="v" id="mMap">0 mmHg</div></div>
+      <div class="metric"><div class="l">Arterial SaO₂</div><div class="v" id="mSat">—</div></div>
+      <div class="metric"><div class="l">PaCO₂</div><div class="v" id="mCo2">—</div></div>
+      <div class="metric"><div class="l">Blood temp</div><div class="v" id="mBt">36.5 °C</div></div>
+      <div class="metric"><div class="l">Patient temp</div><div class="v" id="mPt">36.5 °C</div></div>
+      <div class="metric"><div class="l">Water–blood ΔT</div><div class="v" id="mDt">—</div></div>
+    </div>
+    <div class="obs" id="hAlarm" style="display:none"></div>
+    <div class="small" style="margin-top:8px">Roller pump with 3/8″ tubing ≈ 27 mL per revolution. Time is accelerated ×10 for temperature changes.</div>
+  </div>
+
+  <div class="panel"><h2>Observations</h2><div class="txt">
+    • Venous blood is siphoned from the right atrium / vena cavae into the reservoir by gravity.<br>
+    • The roller pump compresses tubing against a backing plate; flow ≈ rpm × stroke volume. Required flow ≈ <b>2.4 L/min/m²</b> (about 5 L/min in an adult).<br>
+    • <b>Bubble oxygenator</b>: blood exposed to 95% O₂ + 5% CO₂ bubbles; defoaming filter removes bubbles. <b>Membrane oxygenator</b>: gas diffuses across fine tubes — FiO₂ sets PaO₂, sweep gas flow sets PaCO₂.<br>
+    • Heat exchanger cools the blood (hypothermia lowers O₂ demand) and later rewarms it before weaning off bypass.<br>
+    • Arterial filter removes clots and debris before return to the ascending aorta (or femoral artery).
+  </div></div>
+
+  <div class="panel"><h2>Result</h2><div class="txt">Thus the working of heart lung machine is studied with a working model.</div></div>
+</div></div>
+
+<!-- ================= AUDIOMETER ================= -->
+<div class="view" id="view-audio"><div class="wrap">
+  <div class="view-title">
+    <div><h1>Recording of Audiogram</h1><div class="sub">Module 03 · Audiometry</div></div>
+    <button class="back-btn" data-view="home">← Home</button>
+  </div>
+
+  <div class="panel"><h2>Aim</h2><div class="txt">To measure the pure tone air conduction and to study bone conduction thresholds of hearing using audiometer.</div></div>
+
+  <div class="panel"><h2>Equipment Required</h2>
+    <div class="tbl-wrap"><table>
+      <tr><th>S.No</th><th>Name of the Equipment</th><th>Qty</th></tr>
+      <tr><td>1</td><td>Audiometer</td><td>1</td></tr>
+      <tr><td>2</td><td>Headphones</td><td>1</td></tr>
+      <tr><td>3</td><td>Bone conduction vibrator</td><td>1</td></tr>
+    </table></div>
+  </div>
+
+  <div class="panel"><h2>Block Diagram of Basic Audiometer</h2>
+    <svg class="dg" viewBox="0 0 600 270">
+      <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" fill="#5eead4"/></marker></defs>
+      <g font-size="10" fill="#e6edf3" text-anchor="middle">
+        <text x="110" y="16" fill="#8b98b0">Tone channel</text>
+        <rect x="40" y="26" width="140" height="34" rx="5" fill="#0a1020" stroke="#5eead4"/><text x="110" y="47">Oscillator (125 Hz–8 kHz)</text>
+        <rect x="40" y="80" width="140" height="34" rx="5" fill="#0a1020" stroke="#5eead4"/><text x="110" y="101">Equalization</text>
+        <rect x="40" y="134" width="140" height="34" rx="5" fill="#0a1020" stroke="#5eead4"/><text x="110" y="155">Attenuator (tone level)</text>
+        <rect x="40" y="188" width="140" height="34" rx="5" fill="#0a1020" stroke="#5eead4"/><text x="110" y="209">Power amplifier</text>
+        <text x="110" y="250">Test ear: headphone / vibrator</text>
+        <text x="330" y="16" fill="#8b98b0">Masking channel</text>
+        <rect x="260" y="26" width="140" height="34" rx="5" fill="#0a1020" stroke="#f59e0b"/><text x="330" y="41">Noise generator</text><text x="330" y="54" fill="#8b98b0" font-size="9">+ N.B. filter</text>
+        <rect x="260" y="80" width="140" height="34" rx="5" fill="#0a1020" stroke="#f59e0b"/><text x="330" y="101">Equalization</text>
+        <rect x="260" y="134" width="140" height="34" rx="5" fill="#0a1020" stroke="#f59e0b"/><text x="330" y="155">Attenuator (noise level)</text>
+        <rect x="260" y="188" width="140" height="34" rx="5" fill="#0a1020" stroke="#f59e0b"/><text x="330" y="209">Power amplifier</text>
+        <text x="330" y="250">Non-test ear masker</text>
+        <rect x="450" y="80" width="120" height="34" rx="5" fill="#0a1020" stroke="#facc15"/><text x="510" y="101">Indication (light)</text>
+        <text x="510" y="210">Patient response</text><text x="510" y="223">button</text>
+      </g>
+      <g stroke="#5eead4" stroke-width="2" fill="none" marker-end="url(#ar3)">
+        <path d="M110,60V78"/><path d="M110,114V132"/><path d="M110,168V186"/><path d="M110,222V238"/>
+        <path d="M330,60V78"/><path d="M330,114V132"/><path d="M330,168V186"/><path d="M330,222V238"/>
+        <path d="M510,198V116"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="panel"><h2>Audiometer Console</h2>
+    <div class="field"><label>Transducer</label>
+      <div class="seg" id="aTr"><button data-t="AC" class="active">Air (headphones)</button><button data-t="BC">Bone (vibrator)</button></div>
+    </div>
+    <div class="field"><label>Test ear</label>
+      <div class="seg" id="aEar"><button data-e="R" class="active">Right</button><button data-e="L">Left</button></div>
+    </div>
+    <div class="field"><label>Frequency (Hz)</label>
+      <div class="seg" id="aFreq">
+        <button data-f="125">125</button><button data-f="250">250</button><button data-f="500">500</button>
+        <button data-f="1000" class="active">1k</button><button data-f="2000">2k</button><button data-f="4000">4k</button><button data-f="8000">8k</button>
+      </div>
+    </div>
+    <div class="control"><label>Tone level (hearing level)</label>
+      <div class="readout"><span id="aDb">40</span><span class="unit">dB HL</span></div>
+      <input type="range" id="aDbSl" min="-10" max="100" step="5" value="40">
+      <div class="small" id="aLimit">Range −10 to 100 dB HL in 5 dB steps.</div>
+    </div>
+    <div class="field" style="margin-top:12px"><label>Masking (non-test ear)</label>
+      <div class="seg" id="aMaskT"><button data-k="OFF" class="active">Off</button><button data-k="NB">Narrow band</button><button data-k="WB">White noise</button></div>
+    </div>
+    <div class="control" id="aMaskBox" style="display:none"><label>Masking noise level</label>
+      <div class="readout"><span id="aMdb">40</span><span class="unit">dB EM</span></div>
+      <input type="range" id="aMdbSl" min="0" max="90" step="5" value="40">
+    </div>
+    <div class="btn-row">
+      <button class="act yellow" id="aPresent">🔊 Present tone</button>
+      <button class="act green" id="aMark">✓ Record threshold</button>
+    </div>
+    <div class="row-between" style="margin-top:12px"><span class="small">Patient response indicator <span class="resp" id="aResp"></span></span><span class="small">Sound played is for demonstration only — not calibrated.</span></div>
+    <div class="obs" id="aObs">Present the tone at a level the patient clearly hears, then reduce in 10 dB steps; after no response, raise in 5 dB steps. Record the lowest level heard consistently.</div>
+  </div>
+
+  <div class="panel"><h2>Audiogram</h2>
+    <svg class="dg" viewBox="0 0 560 360" id="aGram"></svg>
+    <div class="legend">
+      <span style="color:#ef4444">O AC R</span><span style="color:#ef4444">Δ AC R masked</span><span style="color:#ef4444">&lt; BC R</span><span style="color:#ef4444">[ BC R masked</span>
+      <span style="color:#3b82f6">X AC L</span><span style="color:#3b82f6">□ AC L masked</span><span style="color:#3b82f6">&gt; BC L</span><span style="color:#3b82f6">] BC L masked</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="back-btn" id="aClear">Clear audiogram</button>
+      <button class="back-btn" id="aRef">Show expected audiogram</button>
+    </div>
+  </div>
+
+  <div class="panel"><h2>Tabulation</h2>
+    <div class="tbl-wrap"><table id="aTable"></table></div>
+    <div class="obs" id="aSummary">Record AC at 500, 1k, 2k Hz (and BC) for each ear to get the pure tone average and type of loss.</div>
+  </div>
+
+  <div class="panel"><h2>Procedure</h2><div class="txt">
+    <b>Air conduction</b><br>
+    1. Plug the headphones into the jack and switch on the audiometer.<br>
+    2. Set the mode to RIGHT or LEFT for the ear to be tested.<br>
+    3. Start at 1000 Hz. Present the tone at a higher level so the patient knows what to listen for, then reduce the level until the threshold is reached; note the dB.<br>
+    4. Repeat to verify the reliability of the response. Test the higher frequencies, then the frequencies below 1000 Hz.<br>
+    <b>Bone conduction</b><br>
+    5. Plug in the bone vibrator (placed on the mastoid) and set the switch to BC.<br>
+    6. Test 250–4000 Hz only, by the same method. Mask the non-test ear, since bone-conducted sound reaches both cochleae.
+  </div></div>
+
+  <div class="panel"><h2>Observations</h2><div class="txt">
+    • Degree of loss (PTA of 500, 1k, 2k Hz): Normal ≤ 25 · Mild 26–40 · Moderate 41–55 · Moderately severe 56–70 · Severe 71–90 · Profound &gt; 90 dB HL.<br>
+    • <b>Conductive loss</b>: AC raised, BC normal (air–bone gap ≥ 15 dB). <b>Sensorineural</b>: AC and BC both raised, no gap. <b>Mixed</b>: both raised with a gap.<br>
+    • Interaural attenuation ≈ 40 dB for headphones and ≈ 0 dB for bone conduction — hence masking.
+  </div></div>
+
+  <div class="panel"><h2>Result</h2><div class="txt">The hearing acuity was assessed using an audiometer, and the results were plotted on an audiogram.</div></div>
+</div></div>
+
+<footer>Virtual Lab · Biomedical Instrumentation · SRMIST<br><b>Syed Najeeb Ahmad Andrabi</b> (RA2311013010059) &nbsp;·&nbsp; <b>Faraz Bin Qayoom</b> (RA2311013010058)</footer>
+
+<script>
+/* ---------- helpers ---------- */
+function fitCanvas(c){const r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;
+  c.width=Math.max(1,r.width*d);c.height=Math.max(1,r.height*d);const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);return{ctx:x,w:r.width,h:r.height};}
+function segInit(id,attr,cb){const g=document.getElementById(id);g.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;
+  g.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));cb(b.dataset[attr]);});}
+function segSet(id,attr,val){document.getElementById(id).querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset[attr]===val));}
+const $=id=>document.getElementById(id);
+
+/* ---------- router ---------- */
+(()=>{const views=['home','defib','hlm','audio'];
+  function go(v){views.forEach(id=>$('view-'+id).classList.toggle('active',id===v));
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active',t.dataset.view===v));
+    window.scrollTo(0,0);window.dispatchEvent(new Event('resize'));}
+  document.addEventListener('click',e=>{const el=e.target.closest('[data-view]');if(el)go(el.dataset.view);});
+})();
+
+/* =========================================================
+   EXPERIMENT 1 — DEFIBRILLATOR
+   ========================================================= */
+(()=>{
+  const FS=250,WIN=4,N=FS*WIN;
+  const ecgBuf=new Float32Array(N),syncBuf=new Float32Array(N);
+  let wp=0,simT=0,acc=0;
+  const st={rhythm:'VFIB',mode:'MANUAL',wave:'MDS',E:300,R:50,t1:6,t2:4,
+            charged:false,charging:false,chargeP:0,pendingSync:false,flatUntil:-1};
+  let beatStart=-10,nextBeat=0,rr=60/72,rFired=true;const rTimes=[];
+  let pendingRow=null,lastShock=null;
+  const names={NORMAL:'Normal sinus rhythm',AFIB:'Atrial fibrillation',VFIB:'Ventricular fibrillation'};
+  const short={NORMAL:'Normal',AFIB:'A-fib',VFIB:'V-fib'};
+
+  const g=(x,m,s,a)=>a*Math.exp(-((x-m)*(x-m))/(2*s*s));
+
+  function sample(t){
+    if(t<st.flatUntil) return [0,0];
+    if(st.rhythm==='VFIB'){
+      const v=0.45*Math.sin(2*Math.PI*4.8*t+0.9*Math.sin(0.8*t))
+             +0.25*Math.sin(2*Math.PI*6.4*t+1.3)*(0.6+0.4*Math.sin(0.45*t))+(Math.random()-0.5)*0.08;
+      return [v,0];
+    }
+    if(t>=nextBeat){beatStart=nextBeat;rr=st.rhythm==='NORMAL'?60/72:0.42+Math.random()*0.36;nextBeat=beatStart+rr;rFired=false;}
+    const p=t-beatStart;let v=0;
+    if(st.rhythm==='NORMAL') v+=g(p,0.10,0.025,0.15);
+    else v+=0.05*Math.sin(2*Math.PI*7*t)+0.03*Math.sin(2*Math.PI*5.2*t+1)+(Math.random()-0.5)*0.03; // f-waves, no P
+    v+=g(p,0.20,0.008,-0.12)+g(p,0.22,0.010,1.2)+g(p,0.245,0.010,-0.28)+g(p,0.42,0.045,0.30);
+    let s=0;
+    if(p>=0.212&&p<0.232) s=1;
+    if(!rFired&&p>=0.212){rFired=true;onR(t);}
+    return [v,s];
+  }
+
+  function onR(t){rTimes.push(t);if(rTimes.length>6)rTimes.shift();
+    if(st.pendingSync){st.pendingSync=false;discharge(t,0.212);}}
+
+  function hr(){
+    if(st.rhythm==='VFIB'||simT<st.flatUntil||rTimes.length<3) return null;
+    const iv=[];for(let i=1;i<rTimes.length;i++)iv.push(rTimes[i]-rTimes[i-1]);
+    return Math.round(60/(iv.reduce((a,b)=>a+b,0)/iv.length));
+  }
+
+  /* ---- pulse model ---- */
+  function pulse(E,R){
+    const out=[];const T=0.02,n=400;
+    if(st.wave==='MDS'){
+      const C=16e-6,L=0.05,Ri=11,V0=Math.sqrt(2*E/C),Rt=R+Ri,a=Rt/(2*L),w0=1/Math.sqrt(L*C);
+      for(let k=0;k<=n;k++){const t=k/n*T;let i;
+        if(a<w0){const wd=Math.sqrt(w0*w0-a*a);i=V0/(wd*L)*Math.exp(-a*t)*Math.sin(wd*t);}
+        else if(a>w0){const b=Math.sqrt(a*a-w0*w0);i=V0/(2*b*L)*(Math.exp((-a+b)*t)-Math.exp((-a-b)*t));}
+        else i=V0/L*t*Math.exp(-a*t);
+        out.push([t,i]);}
+      return {pts:out,V0,C};
+    }
+    const C=150e-6,V0=Math.sqrt(2*E/C),tau=R*C,t1=st.t1/1000,t2=st.wave==='BTE'?st.t2/1000:0;
+    for(let k=0;k<=n;k++){const t=k/n*T;let i=0;
+      if(t<t1) i=V0/R*Math.exp(-t/tau);
+      else if(t<t1+t2) i=-V0/R*Math.exp(-t/tau);
+      out.push([t,i]);}
+    return {pts:out,V0,C};
+  }
+  function pulseStats(E,R){
+    const p=pulse(E,R);let ip=0,ed=0;const dt=p.pts[1][0]-p.pts[0][0];
+    p.pts.forEach(([t,i])=>{if(Math.abs(i)>Math.abs(ip))ip=i;ed+=i*i*R*dt;});
+    return {...p,ip,ed};
+  }
+
+  /* ---- drawing ---- */
+  let ecgC=fitCanvas($('dEcg')),wvC=fitCanvas($('dWaveC'));
+  window.addEventListener('resize',()=>{ecgC=fitCanvas($('dEcg'));wvC=fitCanvas($('dWaveC'));drawPulse();});
+
+  function drawECG(){
+    if($('dEcg').clientHeight>0&&Math.abs($('dEcg').clientWidth-ecgC.w)>1) ecgC=fitCanvas($('dEcg'));
+    const {ctx,w,h}=ecgC;if(w<2||h<2)return;ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle='rgba(43,255,154,.09)';ctx.lineWidth=1;
+    for(let s=0;s<=WIN;s+=0.2){const x=s/WIN*w;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+    for(let y=0;y<=h;y+=h/10){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+    const y1=h*0.36,y2=h*0.9;
+    const gap=FS*0.1;
+    const trace=(buf,base,scale,col)=>{ctx.strokeStyle=col;ctx.lineWidth=1.8;ctx.shadowColor=col;ctx.shadowBlur=8;ctx.beginPath();let pen=false;
+      for(let i=0;i<N;i++){const ahead=(i-wp+N)%N;if(ahead<gap){pen=false;continue;}
+        const x=i/N*w,y=base-buf[i]*scale;if(!pen){ctx.moveTo(x,y);pen=true;}else ctx.lineTo(x,y);}ctx.stroke();ctx.shadowBlur=0;};
+    trace(ecgBuf,y1,h*0.24,st.rhythm==='VFIB'?'#ff3b5c':st.rhythm==='AFIB'?'#ffb020':'#2bff9a');
+    trace(syncBuf,y2,h*0.12,'#facc15');
+    ctx.fillStyle='#22c55e';ctx.font='10px sans-serif';ctx.fillText('CH1 ECG',6,12);
+    ctx.fillStyle='#facc15';ctx.fillText('CH2 SYNC'+(st.mode==='SYNC'?'':' (off — manual)'),6,h*0.72);
+  }
+
+  function drawPulse(){
+    if($('dWaveC').clientHeight>0&&Math.abs($('dWaveC').clientWidth-wvC.w)>1) wvC=fitCanvas($('dWaveC'));
+    const {ctx,w,h}=wvC;
+    const s0=pulseStats(st.E,st.R);
+    $('dMv').textContent=Math.round(s0.V0)+' V';$('dMi').textContent=Math.abs(s0.ip).toFixed(1)+' A';$('dMe').textContent=Math.round(s0.ed)+' / '+st.E+' J';
+    if(w<2||h<2)return;ctx.clearRect(0,0,w,h);
+    const L=34,B=20,pw=w-L-14,ph=h-B-14;
+    const s=pulseStats(st.E,st.R);
+    let max=0;s.pts.forEach(p=>max=Math.max(max,Math.abs(p[1])));max=Math.ceil(max/10)*10||10;
+    ctx.strokeStyle='#14223f';ctx.fillStyle='#8b98b0';ctx.font='9px sans-serif';
+    for(let ms=0;ms<=20;ms+=2){const x=L+ms/20*pw;ctx.beginPath();ctx.moveTo(x,10);ctx.lineTo(x,10+ph);ctx.stroke();ctx.fillText(ms,x-(ms>=10?6:3),h-6);}
+    const y0=10+ph/2,yk=(ph/2)/max;
+    [-max,-max/2,0,max/2,max].forEach(v=>{const y=y0-v*yk;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(L+pw,y);ctx.stroke();ctx.fillText(Math.round(v),2,y+3);});
+    ctx.strokeStyle=lastShock?'#f59e0b':'rgba(245,158,11,.45)';ctx.lineWidth=2;ctx.setLineDash(lastShock?[]:[5,4]);ctx.beginPath();
+    s.pts.forEach(([t,i],k)=>{const x=L+t/0.02*pw,y=y0-i*yk;k?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#8b98b0';ctx.textAlign='right';ctx.fillText((lastShock?'Last discharge':'Expected pulse')+' · current (A) vs time (ms)',L+pw-4,y0-max*yk*0.55);ctx.textAlign='left';
+  }
+
+  /* ---- loop ---- */
+  let last=performance.now();
+  function loop(now){
+    const dt=Math.min(0.1,(now-last)/1000);last=now;acc+=dt*FS;
+    while(acc>=1){acc-=1;simT+=1/FS;const [v,s]=sample(simT);ecgBuf[wp]=v;syncBuf[wp]=st.mode==='SYNC'?s:0;wp=(wp+1)%N;}
+    if(st.charging){st.chargeP=Math.min(1,st.chargeP+dt/(1+4*st.E/360));
+      $('dBar').style.width=(st.chargeP*100)+'%';
+      const C=st.wave==='MDS'?16e-6:150e-6;$('dVcap').textContent=Math.round(Math.sqrt(2*st.E*st.chargeP/C));
+      if(st.chargeP>=1){st.charging=false;st.charged=true;$('dShock').disabled=false;$('dCharge').disabled=false;
+        obs(`<b>Charged to ${st.E} J</b> (shown on front panel). Capacitor at ${$('dVcap').textContent} V. Press DISCHARGE.`);}}
+    const h=hr();$('dHR').textContent=h??'—';
+    if(pendingRow&&simT>=pendingRow.at){pendingRow.cell.textContent=hr()??'—';pendingRow=null;}
+    drawECG();requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  function obs(html,cls=''){const o=$('dObs');o.className='obs '+cls;o.innerHTML=html;}
+  function setPill(){const p=$('dRhythmPill');p.textContent=short[st.rhythm];
+    p.className='pill '+(st.rhythm==='NORMAL'?'p-green':st.rhythm==='AFIB'?'p-yel':'p-red');segSet('dSim','r',st.rhythm);}
+  function disarm(msg){if(st.charged||st.charging){st.charged=false;st.charging=false;st.chargeP=0;st.pendingSync=false;
+    $('dBar').style.width='0';$('dVcap').textContent=0;$('dShock').disabled=true;$('dCharge').disabled=false;if(msg)obs(msg,'warn');}}
+
+  function setRhythm(r){st.rhythm=r;rTimes.length=0;nextBeat=simT+0.05;setPill();}
+
+  /* ---- discharge ---- */
+  function discharge(t,phase){
+    const before=st.rhythm,hrBefore=hr();
+    const thr=st.wave==='BTE'?{AFIB:120,VFIB:150}:{AFIB:200,VFIB:300};
+    const vuln=phase!=null&&phase>=0.36&&phase<=0.50;
+    let after=before,msg='',cls='';
+    if(before==='VFIB'){
+      if(st.E>=thr.VFIB){after='NORMAL';msg=`<b>Defibrillation successful.</b> ${st.E} J converted V-fib to normal sinus rhythm.`;}
+      else{msg=`<b>Not corrected.</b> ${st.E} J is too low for V-fib with this waveform (needs ≥ ${thr.VFIB} J). Charge to a higher energy and repeat.`;cls='warn';}
+    }else if(before==='AFIB'){
+      if(st.mode==='MANUAL'&&vuln){after='VFIB';msg='<b>Shock fell on the T-wave (R-on-T) and induced V-fib.</b> A-fib must be cardioverted in SYNCH mode.';cls='bad';}
+      else if(st.E>=thr.AFIB){after='NORMAL';msg=st.mode==='SYNC'?`<b>Synchronised cardioversion successful.</b> Shock was triggered on the R-wave; ${st.E} J restored sinus rhythm.`
+        :`<b>Converted, but unsafe:</b> an asynchronous shock on A-fib risks R-on-T. Use SYNCH mode.`;if(st.mode!=='SYNC')cls='warn';}
+      else{msg=`<b>Not corrected.</b> ${st.E} J is below what A-fib needs with this waveform (≥ ${thr.AFIB} J). Increase energy and repeat.`;cls='warn';}
+    }else{
+      if(st.mode==='MANUAL'&&vuln){after='VFIB';msg='<b>Shock on a normal rhythm landed on the T-wave and induced V-fib.</b> Defibrillation is not indicated in normal rhythm.';cls='bad';}
+      else{msg='<b>Shock not indicated</b> — the rhythm is already normal.';cls='warn';}
+    }
+    st.charged=false;st.chargeP=0;$('dBar').style.width='0';$('dVcap').textContent=0;$('dShock').disabled=true;$('dCharge').disabled=false;
+    st.flatUntil=t+1.0;st.rhythm=after;rTimes.length=0;nextBeat=t+1.1;setPill();
+    lastShock=true;drawPulse();
+    const tb=$('dTable'),row=tb.insertRow(-1),n=tb.rows.length-1;
+    [n,names[before],st.mode==='SYNC'?'Synchronised':'Manual (asynchronous)',st.E,hrBefore??(before==='VFIB'?'— (no QRS)':'—'),'…',short[after]].forEach(v=>row.insertCell().textContent=v);
+    pendingRow={at:t+5.5,cell:row.cells[5]};
+    if(after==='VFIB') pendingRow.cellText='—';
+    obs(msg+' <span class="small">(trace flat for ~1 s: ECG amplifier blanked during the shock)</span>',cls);
+  }
+
+  /* ---- events ---- */
+  segInit('dSim','r',r=>{setRhythm(r);
+    obs(r==='VFIB'?'<b>V-fib selected.</b> Set the mode switch to MANUAL — there is no R-wave for sync to trigger on.'
+      :`<b>${short[r]} selected.</b> Set the mode switch to SYNCH and check that the sync pulse (CH2) coincides with the QRS.`);});
+  segInit('dMode','m',m=>{st.mode=m;st.pendingSync=false;});
+  segInit('dWave','w',w=>{st.wave=w;disarm('Waveform changed — capacitor disarmed. Charge again.');
+    $('dPW1box').style.display=w==='MDS'?'none':'';$('dPW2box').style.display=w==='BTE'?'':'none';
+    const s=$('dPW1sl');if(w==='MTE'){s.max=12;$('dPW1lbl').textContent='Pulse width';}else{s.max=10;if(+s.value>10)s.value=10;$('dPW1lbl').textContent='Positive pulse width';}
+    st.t1=+s.value;$('dPW1').textContent=s.value;lastShock=null;drawPulse();});
+  $('dEsl').addEventListener('input',e=>{st.E=+e.target.value;$('dE').textContent=st.E;disarm('Energy changed — capacitor disarmed (internal dump). Charge again.');lastShock=null;drawPulse();});
+  $('dRsl').addEventListener('input',e=>{st.R=+e.target.value;$('dR').textContent=st.R;lastShock=null;drawPulse();});
+  $('dPW1sl').addEventListener('input',e=>{st.t1=+e.target.value;$('dPW1').textContent=st.t1;lastShock=null;drawPulse();});
+  $('dPW2sl').addEventListener('input',e=>{st.t2=+e.target.value;$('dPW2').textContent=st.t2;lastShock=null;drawPulse();});
+  $('dCharge').addEventListener('click',()=>{if(st.charging)return;st.charging=true;st.charged=false;st.chargeP=0;
+    $('dCharge').disabled=true;$('dShock').disabled=true;obs('Charging…');});
+  $('dShock').addEventListener('click',()=>{
+    if(!st.charged)return;
+    if(st.mode==='SYNC'){
+      if(st.rhythm==='VFIB'||simT<st.flatUntil){obs('<b>No discharge.</b> In SYNCH mode the shock waits for an R-wave, and V-fib has none. Switch to MANUAL.','bad');return;}
+      st.pendingSync=true;$('dShock').disabled=true;obs('Discharge armed — waiting for the next R-wave…');
+    }else{
+      const p=(st.rhythm==='VFIB'||simT<st.flatUntil)?null:simT-beatStart;discharge(simT,p);
+    }
+  });
+  $('dClear').addEventListener('click',()=>{const t=$('dTable');while(t.rows.length>1)t.deleteRow(1);pendingRow=null;});
+  setPill();drawPulse();
+})();
+
+/* =========================================================
+   EXPERIMENT 3 — HEART LUNG MACHINE
+   ========================================================= */
+(()=>{
+  const steps=[
+    'Connect the tubings as per the circuit diagram',
+    'Connect the effluent pump and blood pump to the circuit',
+    'Fill the effluent and blood compartments with water',
+    'Prime the tubings and look for air bubbles or leaks',
+    'Set the blood pump at low speed',
+    'Switch on the heater and power the modules',
+    'Start circulation and observe oxygenation'];
+  const done=new Array(steps.length).fill(false);
+  const st={running:false,primed:false,oxy:'MEM',rpm:0,bsa:1.8,water:32,gas:4,fio2:0.6,blood:36.5,pt:36.5,heater:false,eff:false};
+  const ul=$('hSteps');
+  steps.forEach((s,i)=>{const li=document.createElement('li');li.innerHTML=`<span class="n">${i+1}</span><span class="t">${s}</span><button>Do</button>`;ul.appendChild(li);
+    li.querySelector('button').addEventListener('click',()=>doStep(i));});
+  function refreshSteps(){[...ul.children].forEach((li,i)=>{li.classList.toggle('done',done[i]);const b=li.querySelector('button');
+    b.disabled=done[i]||(i>0&&!done[i-1]);b.textContent=done[i]?'Done':'Do';});}
+  function obs(html,cls=''){const o=$('hObs');o.className='obs '+cls;o.innerHTML=html;}
+  function doStep(i){
+    if(i===0){$('hTubes').setAttribute('opacity','.55');obs('Tubing connected: venous line → reservoir → roller pump → oxygenator → heat exchanger → arterial filter → patient.');}
+    if(i===1){st.eff=true;$('hEffTxt').textContent='connected';$('hEffBox').setAttribute('stroke','#22c55e');obs('Effluent pump and blood pump connected to the circuit.');}
+    if(i===2){$('hLevel').setAttribute('y','50');$('hLevel').setAttribute('height','39');obs('Effluent and blood compartments filled with water.');}
+    if(i===3){st.primed=true;$('hTubes').setAttribute('opacity','1');obs('<b>Circuit primed.</b> Lines filled; no air bubbles or leaks found in the tubing.');}
+    if(i===4){st.rpm=40;$('hRpmSl').value=40;upd();obs('Blood pump set to a low speed (40 rpm ≈ 1.1 L/min).');}
+    if(i===5){st.heater=true;$('hEffTxt').textContent='running';['hWaterSl','hGasSl','hFio2Sl'].forEach(id=>$(id).disabled=false);
+      obs('Heater–cooler and modules powered.');}
+    if(i===6){start();obs('<b>Bypass running.</b> Increase pump speed toward the target flow (2.4 L/min/m²) and watch saturation and temperature.');}
+    done[i]=true;refreshSteps();
+  }
+  refreshSteps();
+
+  function start(){st.running=true;$('hRpmSl').disabled=false;$('hStop').disabled=false;$('hRewarm').disabled=false;
+    const p=$('hStatus');p.className='pill p-green';p.textContent='ON — BYPASS';}
+  $('hStop').addEventListener('click',()=>{
+    if(st.running){st.running=false;$('hStop').textContent='▶ Restart pump';const p=$('hStatus');p.className='pill p-red';p.textContent='PUMP STOPPED';}
+    else{start();$('hStop').textContent='■ Stop pump';}});
+  $('hRewarm').addEventListener('click',()=>{st.water=37;$('hWaterSl').value=37;upd();});
+
+  segInit('hOxy','o',o=>{st.oxy=o;$('hOxyType').textContent=o==='MEM'?'membrane':'bubble + defoamer';
+    $('hFio2Box').style.display=o==='MEM'?'':'none';$('hGasTxt').textContent=o==='MEM'?'O₂ / air':'95% O₂+5% CO₂';});
+
+  function upd(){
+    st.rpm=+$('hRpmSl').value;st.bsa=+$('hBsaSl').value;st.water=+$('hWaterSl').value;st.gas=+$('hGasSl').value;st.fio2=+$('hFio2Sl').value/100;
+    $('hRpm').textContent=st.rpm;$('hFlowR').textContent=(st.rpm*0.027).toFixed(1);
+    $('hBsa').textContent=st.bsa.toFixed(1);$('hTarget').textContent=(2.4*st.bsa).toFixed(1);
+    $('hWater').textContent=st.water;$('hGas').textContent=st.gas.toFixed(1);$('hFio2').textContent=Math.round(st.fio2*100);
+  }
+  ['hRpmSl','hBsaSl','hWaterSl','hGasSl','hFio2Sl'].forEach(id=>$(id).addEventListener('input',upd));upd();
+
+  /* path for particles */
+  const P=[[120,150],[140,150],[140,60],[160,60],[260,60],[286,60],[354,60],[380,60],[440,60],[440,90],[440,140],[440,170],[380,170],[260,170],[160,170],[120,170],[95,170],[95,150]];
+  const segs=[];let tot=0,oxyAt=0;
+  for(let i=0;i<P.length-1;i++){const [a,b]=[P[i],P[i+1]];const l=Math.hypot(b[0]-a[0],b[1]-a[1]);segs.push({a,b,l,s:tot});tot+=l;if(i===7)oxyAt=tot+60;}
+  const hidden=tot-segs[segs.length-1].l-segs[segs.length-2].l;
+  const pts=[];const NP=28,G=$('hParticles');
+  for(let i=0;i<NP;i++){const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('r','3.5');G.appendChild(c);pts.push({el:c,pos:i/NP*tot});}
+  let ang=0,last=performance.now();
+  const sev=P=>100/(1+23400/(P*P*P+150*P));
+
+  function loop(now){
+    const dt=Math.min(0.1,(now-last)/1000);last=now;
+    const flow=st.running?st.rpm*0.027:0;
+    pts.forEach(p=>{p.pos=(p.pos+flow*22*dt)%tot;let r=p.pos;
+      for(const s of segs){if(r<=s.l){const f=s.l?r/s.l:0;p.el.setAttribute('cx',s.a[0]+(s.b[0]-s.a[0])*f);p.el.setAttribute('cy',s.a[1]+(s.b[1]-s.a[1])*f);break;}r-=s.l;}
+      p.el.setAttribute('fill',p.pos<oxyAt?'#3b82f6':'#ef4444');
+      p.el.setAttribute('opacity',(!st.primed||p.pos>hidden)?0:1);});
+    ang=(ang+(st.running?st.rpm*6*dt:0))%360;$('hRotor').setAttribute('transform',`rotate(${ang} 320 60)`);
+
+    // temperature (x10 accelerated)
+    const k=dt*10;
+    if(st.heater&&st.running) st.blood+=(st.water-st.blood)*Math.min(1,k/20);
+    else st.blood+=(st.pt-st.blood)*Math.min(1,k/20);
+    if(st.running&&flow>0) st.pt+=(st.blood-st.pt)*Math.min(1,k*flow/600);
+    $('hWaterTxt').textContent=st.heater?`water ${st.water} °C`:'off';
+    $('hHxTxt').textContent=!st.heater?'—':(st.water<st.pt-0.3?'cooling':st.water>st.pt+0.3?'rewarming':'holding');
+    $('hPhase').textContent=st.running&&st.heater?(st.water<st.pt-0.3?'Cooling phase':st.water>st.pt+0.3?'Rewarming phase':'Steady temperature'):'';
+
+    const r=flow>0?st.gas/flow:0;
+    let pao2,paco2;
+    if(st.oxy==='MEM'){pao2=st.fio2*713*(1-Math.exp(-3*r))*0.85;paco2=Math.min(80,Math.max(18,40/Math.max(r,0.3)*0.95));}
+    else{pao2=0.95*713*(1-Math.exp(-3*r))*0.8;paco2=Math.min(60,Math.max(30,38+4*(1/Math.max(r,0.3)-1)));}
+    const sat=flow>0?Math.min(100,sev(Math.max(pao2,20))):null;
+    const map=flow*16,line=map+flow*35,ci=flow/st.bsa,dT=st.water-st.blood;
+    $('mFlow').textContent=flow.toFixed(1)+' L/min';$('mCI').textContent=ci.toFixed(1)+' L/min/m²';
+    $('mLine').textContent=Math.round(line)+' mmHg';$('mMap').textContent=Math.round(map)+' mmHg';
+    $('mSat').textContent=sat==null?'—':sat.toFixed(1)+'%';$('mCo2').textContent=flow>0?Math.round(paco2)+' mmHg':'—';
+    $('mBt').textContent=st.blood.toFixed(1)+' °C';$('mPt').textContent=st.pt.toFixed(1)+' °C';
+    $('mDt').textContent=st.heater?dT.toFixed(1)+' °C':'—';
+
+    const al=[];
+    if(st.running){
+      if(ci<2.0) al.push('Low flow — cardiac index below 2.0 L/min/m². Increase pump speed toward '+(2.4*st.bsa).toFixed(1)+' L/min.');
+      if(line>300) al.push('High arterial line pressure (> 300 mmHg) — reduce pump speed / check for kinked line.');
+      if(sat!=null&&sat<95) al.push('Low arterial saturation — increase sweep gas / FiO₂.');
+      if(st.oxy==='MEM'&&paco2<30) al.push('PaCO₂ low (hypocapnia) — reduce sweep gas flow.');
+      if(paco2>50) al.push('PaCO₂ high — increase sweep gas flow.');
+      if(Math.abs(dT)>10) al.push('Water–blood temperature gradient > 10 °C — risk of gas coming out of solution. Change temperature gradually.');
+    }
+    const a=$('hAlarm');a.style.display=al.length?'':'none';a.className='obs warn';a.innerHTML=al.map(x=>'⚠ '+x).join('<br>');
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+
+/* =========================================================
+   EXPERIMENT 5 — AUDIOMETER
+   ========================================================= */
+(()=>{
+  const ns='http://www.w3.org/2000/svg',svg=$('aGram');
+  const F=[125,250,500,1000,2000,4000,8000],FBC=[250,500,1000,2000,4000];
+  // simulated patient: right ear normal, left ear conductive loss (air–bone gap)
+  const TRUE={R:{AC:{125:10,250:10,500:10,1000:15,2000:15,4000:20,8000:25},BC:{125:10,250:5,500:10,1000:10,2000:15,4000:15,8000:25}},
+              L:{AC:{125:40,250:40,500:45,1000:45,2000:40,4000:45,8000:50},BC:{125:15,250:10,500:15,1000:15,2000:20,4000:25,8000:30}}};
+  const IA={AC:40,BC:0};
+  const st={tr:'AC',ear:'R',f:1000,db:40,mask:'OFF',mdb:40};
+  const marks={};let showRef=false;
+
+  const M={l:46,r:16,t:22,b:34},W=560,H=360,pw=W-M.l-M.r,ph=H-M.t-M.b;
+  const X=f=>M.l+(Math.log2(f/125)/6)*pw, Y=d=>M.t+((d+10)/130)*ph;
+  const el=(t,a,p=svg)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e;};
+
+  for(let d=-10;d<=120;d+=10){el('line',{x1:M.l,x2:W-M.r,y1:Y(d),y2:Y(d),stroke:d===25?'#5eead4':'#1e2a44','stroke-dasharray':d===25?'4 3':''});
+    el('text',{x:M.l-6,y:Y(d)+3,'text-anchor':'end',fill:'#8b98b0','font-size':10}).textContent=d;}
+  F.forEach(f=>{el('line',{x1:X(f),x2:X(f),y1:M.t,y2:H-M.b,stroke:'#1e2a44'});
+    el('text',{x:X(f),y:M.t-8,'text-anchor':'middle',fill:'#8b98b0','font-size':10}).textContent=f>=1000?f/1000+'k':f;});
+  el('text',{x:W/2,y:H-8,'text-anchor':'middle',fill:'#8b98b0','font-size':10}).textContent='Frequency (Hz)';
+  el('text',{x:12,y:H/2,'text-anchor':'middle',fill:'#8b98b0','font-size':10,transform:`rotate(-90 12 ${H/2})`}).textContent='Hearing level (dB HL)';
+  el('text',{x:M.l+4,y:Y(25)+11,'text-anchor':'start',fill:'#5eead4','font-size':9}).textContent='normal limit 25 dB HL';
+  const lineG=el('g',{}),refG=el('g',{opacity:.3}),markG=el('g',{});
+
+  function symbol(g,ear,tr,masked,x,y,op=1){
+    const c=ear==='R'?'#ef4444':'#3b82f6',sw=2.4;const a={stroke:c,'stroke-width':sw,fill:'none',opacity:op};
+    if(tr==='AC'){
+      if(ear==='R'&&!masked) el('circle',{...a,cx:x,cy:y,r:6},g);
+      if(ear==='R'&&masked) el('path',{...a,d:`M${x},${y-7}L${x+7},${y+5}L${x-7},${y+5}Z`},g);
+      if(ear==='L'&&!masked){el('path',{...a,d:`M${x-6},${y-6}L${x+6},${y+6}M${x+6},${y-6}L${x-6},${y+6}`},g);}
+      if(ear==='L'&&masked) el('rect',{...a,x:x-6,y:y-6,width:12,height:12},g);
+    }else{
+      const dx=ear==='R'?-12:12;x+=dx;
+      if(ear==='R'&&!masked) el('path',{...a,d:`M${x+4},${y-7}L${x-4},${y}L${x+4},${y+7}`},g);
+      if(ear==='R'&&masked) el('path',{...a,d:`M${x+4},${y-7}H${x-3}V${y+7}H${x+4}`},g);
+      if(ear==='L'&&!masked) el('path',{...a,d:`M${x-4},${y-7}L${x+4},${y}L${x-4},${y+7}`},g);
+      if(ear==='L'&&masked) el('path',{...a,d:`M${x-4},${y-7}H${x+3}V${y+7}H${x-4}`},g);
+    }
+  }
+
+  function redraw(){
+    markG.innerHTML='';lineG.innerHTML='';refG.innerHTML='';
+    ['R','L'].forEach(ear=>['AC','BC'].forEach(tr=>{
+      const fl=(tr==='AC'?F:FBC).filter(f=>marks[`${ear}-${tr}-${f}`]);
+      fl.forEach(f=>{const m=marks[`${ear}-${tr}-${f}`];symbol(markG,ear,tr,m.masked,X(f),Y(m.db));});
+      if(fl.length>1) el('polyline',{points:fl.map(f=>`${X(f)+(tr==='BC'?(ear==='R'?-12:12):0)},${Y(marks[`${ear}-${tr}-${f}`].db)}`).join(' '),
+        fill:'none',stroke:ear==='R'?'#ef4444':'#3b82f6','stroke-width':1.5,'stroke-dasharray':tr==='BC'?'5 4':'',opacity:.75},lineG);
+      if(showRef)(tr==='AC'?F:FBC).forEach(f=>symbol(refG,ear,tr,false,X(f),Y(TRUE[ear][tr][f])));
+    }));
+    table();
+  }
+
+  function table(){
+    const t=$('aTable');t.innerHTML='<tr><th>Frequency (Hz)</th><th style="color:#ef4444">Right AC</th><th style="color:#ef4444">Right BC</th><th style="color:#3b82f6">Left AC</th><th style="color:#3b82f6">Left BC</th></tr>';
+    F.forEach(f=>{const r=t.insertRow();r.insertCell().textContent=f;
+      [['R','AC'],['R','BC'],['L','AC'],['L','BC']].forEach(([e,tr])=>{const c=r.insertCell();
+        if(tr==='BC'&&!FBC.includes(f)){c.textContent='NA';c.style.color='#8b98b0';return;}
+        const m=marks[`${e}-${tr}-${f}`];c.textContent=m?m.db+(m.masked?' (M)':''):'';});});
+    t.insertAdjacentHTML('beforeend','<tr><td colspan="5" style="color:#8b98b0;text-align:left">Values in dB HL · (M) = masked</td></tr>');
+    summary();
+  }
+
+  const degree=p=>p<=25?'Normal hearing':p<=40?'Mild':p<=55?'Moderate':p<=70?'Moderately severe':p<=90?'Severe':'Profound';
+  function summary(){
+    const out=[];
+    ['R','L'].forEach(e=>{const nm=e==='R'?'Right':'Left';
+      const ac=[500,1000,2000].map(f=>marks[`${e}-AC-${f}`]?.db),bc=[500,1000,2000].map(f=>marks[`${e}-BC-${f}`]?.db);
+      if(ac.some(v=>v==null)){out.push(`<b>${nm}:</b> record AC at 500, 1k and 2k Hz.`);return;}
+      const pa=ac.reduce((a,b)=>a+b)/3;let s=`<b>${nm} ear:</b> AC PTA ${pa.toFixed(1)} dB HL — ${degree(pa)}`;
+      if(bc.some(v=>v==null)){s+=pa>25?'. Record BC to find the type of loss.':'.';out.push(s);return;}
+      const pb=bc.reduce((a,b)=>a+b)/3,gap=pa-pb;s+=`; BC PTA ${pb.toFixed(1)} dB; air–bone gap ${gap.toFixed(1)} dB`;
+      if(pa<=25)s+='.';else if(gap>=15&&pb<=25)s+=' → <b>conductive</b> hearing loss.';else if(gap<15)s+=' → <b>sensorineural</b> hearing loss.';else s+=' → <b>mixed</b> hearing loss.';
+      out.push(s);});
+    $('aSummary').innerHTML=out.join('<br>');
+  }
+
+  /* response model incl. cross-hearing & masking */
+  function respond(){
+    const e=st.ear,o=e==='R'?'L':'R',f=st.f,L=st.db,tr=st.tr;
+    const masked=st.mask!=='OFF';
+    let thr=TRUE[e][tr][f],note='';
+    if(masked){const over=st.mdb-IA.AC-TRUE[e].BC[f];if(over>=0){thr+=over+5;note='overmask';}}
+    const direct=L>=thr;
+    let cross=false;
+    if(L-IA[tr]>=TRUE[o].BC[f]){cross=!(masked&&st.mdb>=TRUE[o].AC[f]+10);}
+    return {heard:direct||cross,cross:cross&&!direct,note};
+  }
+
+  /* audio */
+  let ac=null,noiseBuf=null;
+  function audio(){if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();
+    noiseBuf=ac.createBuffer(1,ac.sampleRate*2,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}return ac;}
+  const gainOf=db=>Math.min(0.3,0.3*Math.pow(10,(db-100)/40));
+  function pan(ctx,v){if(ctx.createStereoPanner){const p=ctx.createStereoPanner();p.pan.value=v;return p;}return ctx.createGain();}
+  function play(){
+    const ctx=audio(),t=ctx.currentTime;
+    const o=ctx.createOscillator(),g=ctx.createGain(),p=pan(ctx,st.tr==='BC'?0:(st.ear==='R'?1:-1));
+    o.type='sine';o.frequency.value=st.f;const v=gainOf(st.db)*(st.tr==='BC'?0.6:1);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+0.03);g.gain.setValueAtTime(v,t+0.95);g.gain.linearRampToValueAtTime(0,t+1);
+    o.connect(g).connect(p).connect(ctx.destination);o.start(t);o.stop(t+1.05);
+    if(st.mask!=='OFF'){const n=ctx.createBufferSource();n.buffer=noiseBuf;const ng=ctx.createGain(),np=pan(ctx,st.ear==='R'?-1:1);
+      let chain=n;if(st.mask==='NB'){const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=st.f;bp.Q.value=4;n.connect(bp);chain=bp;}
+      const nv=gainOf(st.mdb)*0.5;ng.gain.setValueAtTime(0,t);ng.gain.linearRampToValueAtTime(nv,t+0.05);ng.gain.setValueAtTime(nv,t+1.3);ng.gain.linearRampToValueAtTime(0,t+1.4);
+      chain.connect(ng).connect(np).connect(ctx.destination);n.start(t);n.stop(t+1.45);}
+  }
+
+  function obs(h,c=''){const o=$('aObs');o.className='obs '+c;o.innerHTML=h;}
+  $('aPresent').addEventListener('click',()=>{
+    play();const r=respond();const nm=st.ear==='R'?'right':'left';
+    setTimeout(()=>{$('aResp').classList.toggle('on',r.heard);setTimeout(()=>$('aResp').classList.remove('on'),900);},300);
+    let msg=r.heard?`<b>Response.</b> Patient pressed the button — ${st.f} Hz at ${st.db} dB HL (${st.tr}, ${nm}). Reduce by 10 dB.`
+                   :`<b>No response</b> at ${st.db} dB HL. Raise by 5 dB.`;
+    if(r.note==='overmask') msg+=' <br>⚠ Masking level may be crossing over to the test ear (overmasking) — lower the masking.';
+    obs(msg,r.note?'warn':'');
+    window.__lastCross=r.cross;
+  });
+  $('aMark').addEventListener('click',()=>{
+    const k=`${st.ear}-${st.tr}-${st.f}`;marks[k]={db:st.db,masked:st.mask!=='OFF'};redraw();
+    let msg=`Recorded ${st.tr} ${st.ear==='R'?'right':'left'} ${st.f} Hz = <b>${st.db} dB HL</b>${st.mask!=='OFF'?' (masked)':''}.`;
+    const o=st.ear==='R'?'L':'R';
+    if(st.tr==='BC'&&st.mask==='OFF') msg+=' <br>⚠ Unmasked BC may reflect the better cochlea (interaural attenuation ≈ 0 dB). Mask the non-test ear and re-test.';
+    else if(st.tr==='AC'&&st.mask==='OFF'&&st.db-IA.AC>=(TRUE[o].BC[st.f])) msg+=' <br>⚠ Level exceeds the other ear\'s BC by ≥ 40 dB — cross-hearing possible. Mask and re-test.';
+    obs(msg,msg.includes('⚠')?'warn':'');
+  });
+  $('aClear').addEventListener('click',()=>{for(const k in marks)delete marks[k];redraw();});
+  $('aRef').addEventListener('click',()=>{showRef=!showRef;$('aRef').textContent=showRef?'Hide expected audiogram':'Show expected audiogram';redraw();});
+
+  segInit('aTr','t',t=>{st.tr=t;
+    document.querySelectorAll('#aFreq button').forEach(b=>b.disabled=t==='BC'&&!FBC.includes(+b.dataset.f));
+    if(t==='BC'&&!FBC.includes(st.f)){st.f=1000;segSet('aFreq','f','1000');}
+    const s=$('aDbSl');s.max=t==='BC'?70:100;if(+s.value>+s.max){s.value=s.max;st.db=+s.max;$('aDb').textContent=st.db;}
+    $('aLimit').textContent=t==='BC'?'Bone vibrator: 250–4000 Hz only, max 70 dB HL.':'Range −10 to 100 dB HL in 5 dB steps.';});
+  segInit('aEar','e',e=>{st.ear=e;$('aEar').className='seg '+(e==='R'?'r':'l');});
+  $('aEar').className='seg r';
+  segInit('aFreq','f',f=>st.f=+f);
+  segInit('aMaskT','k',k=>{st.mask=k;$('aMaskBox').style.display=k==='OFF'?'none':'';});
+  $('aDbSl').addEventListener('input',e=>{st.db=+e.target.value;$('aDb').textContent=st.db;});
+  $('aMdbSl').addEventListener('input',e=>{st.mdb=+e.target.value;$('aMdb').textContent=st.mdb;});
+  redraw();
+})();
+</script>
+</body>
+</html>
